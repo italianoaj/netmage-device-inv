@@ -3,6 +3,7 @@
 import subprocess
 import threading
 import queue
+import re
 
 network = input("Enter the network to scan in CIDR notation: ")
 netchunk = network.split("/")
@@ -12,6 +13,9 @@ ipv4Bits = 32
 netbits=int(mask)
 hostbits=ipv4Bits-netbits
 hosts=(2**hostbits)-2
+print("network id is: "+networkID)
+print("subnet mask is: "+mask)
+print("amount of hosts able to be on this network: "+str(hosts))
 
 def ping(ip_address, presults_queue, nresults_queue, live_ips):
     """Pings a single IP address and puts the result in the queue."""
@@ -55,6 +59,21 @@ def ping_threaded(ip_addresses):
     f2.close()
     return online
 
+def get_mac(ipaddress):
+    """uses arp to get the MAC address of a device"""
+    try:
+        p1 = subprocess.Popen(["arp", ipaddress], stdout=subprocess.PIPE)
+        p2 = subprocess.check_output(['awk', '{print $3}'], stdin=p1.stdout)
+        p1.stdout.close() #close p1 output to stop lockout
+        #p3 = subprocess.check_output(['grep', '-E', '([0-9a-f]{2}:){5}[0-9a-f]{2}'], stdin=p2.stdout, stderr=subprocess.STDOUT)
+        #p2.stdout.close() #close p2
+        #mac_chunk=str(p3).rsplit("\'",1)[0]
+        mac=re.search("([0-9a-f]{2}:){5}[0-9a-f]{2}", str(p2))
+        print(mac.group())
+    except Exception as E:
+        print(E)
+
+
 if __name__ == "__main__":
     ip_addresses = []
     for i in range(hosts+1):
@@ -62,3 +81,4 @@ if __name__ == "__main__":
     online = ping_threaded(ip_addresses)
     for ip in online:
         print(ip)
+    get_mac(online[2])
