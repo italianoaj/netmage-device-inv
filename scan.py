@@ -6,13 +6,13 @@ import queue
 import re
 
 network = input("Enter the network to scan in CIDR notation: ")
-netchunk = network.split("/")
+netchunk = network.split("/") #seperate the network ID from the subnet mask
 networkID = netchunk[0].rsplit('.',1)[0]
 mask = netchunk[1]
 ipv4Bits = 32
 netbits=int(mask)
 hostbits=ipv4Bits-netbits
-hosts=(2**hostbits)-2
+hosts=(2**hostbits)-2 #math to calculate possible IP range
 print("network id is: "+networkID)
 print("subnet mask is: "+mask)
 print("amount of hosts able to be on this network: "+str(hosts))
@@ -38,8 +38,8 @@ def ping_threaded(ip_addresses):
     nresults_queue = queue.Queue()
     threads = []
     online = []
-    f = open("offline_ips.log", "a")
-    f2 = open("online_ips.log", "a")
+    f = open("offline_ips.log", "a") #open file for error logs
+    f2 = open("online_ips.log", "a") #open file for success logs
 
     for ip_address in ip_addresses:
         thread = threading.Thread(target=ping, args=(ip_address, presults_queue, nresults_queue, online))
@@ -50,14 +50,15 @@ def ping_threaded(ip_addresses):
         thread.join()
 
     while not presults_queue.empty():
-        f2.write(presults_queue.get())
+        f2.write(presults_queue.get()) #write positive logs
 
     while not nresults_queue.empty():
-        f.write(nresults_queue.get())
+        f.write(nresults_queue.get()) #write negative logs
 
-    f.close()
+    f.close() #close files
     f2.close()
-    return online
+
+    return online #return successfully pinged IPs
 
 def get_mac(ipaddress, ip_mac):
     """uses arp to get the MAC address of a device"""
@@ -68,14 +69,28 @@ def get_mac(ipaddress, ip_mac):
         p1.stdout.close() #close p1 output to stop lockout
         dirtyMac=re.search("([0-9a-f]{2}:){5}[0-9a-f]{2}", str(p2)) #regex lookup for mac address
         mac=dirtyMac.group()
-        print(mac)
         keyPair = {ipaddress : mac} #make key-pair of mac and ip
         ip_mac.append(keyPair) #add to array
     except Exception as E:
+        print("Error:")
         print(E)
 
-def mac_threaded():
-    return
+def mac_threaded(online_ips):
+    """Gets multiple mac addresses from online ips using arp"""
+    pos_res = queue.Queue()
+    threads = []
+    ip_mac = []
+    f = open("HWaddresses.log", "a")
+    for ip in online_ips: #create threads for each ip address
+        thread = threading.Thread(target=get_mac, args=(ip, ip_mac))
+        threads.append(thread)
+        thread.start()
+    for thread in threads: #join threads
+        thread.join()
+    while not pos_res.empty():
+        f.write(pos_res.get())
+
+    return ip_mac #return array of ip-mac objects
 
 
 if __name__ == "__main__":
@@ -86,5 +101,5 @@ if __name__ == "__main__":
     online = ping_threaded(ip_addresses)
     for ip in online:
         print(ip)
-    get_mac(online[2],macs)
+    macs = mac_threaded(online)
     print(macs)
