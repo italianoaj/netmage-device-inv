@@ -92,6 +92,20 @@ def mac_threaded(online_ips):
 
     return ip_mac #return array of ip-mac objects
 
+def get_hostname(ipaddress):
+    """uses nmap to pull the hostname of IP addresses"""
+    try:
+        p1 = subprocess.Popen(["nmap", "-r", ipaddress], stdout=subprocess.PIPE) #run nmap
+        p2 = subprocess.Popen(["grep",  "scan report"], stdin=p1.stdout, stdout=subprocess.PIPE) #grep for scan report
+        p1.stdout.close() #close subprocess1
+        p3 = subprocess.check_output(["awk", '{print $5}'], stdin=p2.stdout) #awk for the 5th segment
+        p2.stdout.close()
+
+        print(str(p3)) #print the result
+
+    except Exception as E:
+        print("Error Finding Hostname:")
+        print(E)
 
 if __name__ == "__main__":
     ip_addresses = []
@@ -103,3 +117,4 @@ if __name__ == "__main__":
         print(ip)
     macs = mac_threaded(online)
     print(macs)
+    get_hostname(online[2])
